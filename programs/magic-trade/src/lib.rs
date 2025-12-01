@@ -13,7 +13,7 @@ pub use constants::*;
 pub use instructions::*;
 pub use state::*;
 
-declare_id!("92qkdfRpsQxkuc9DnJ4oXGkLLW3xeSTYwQGRBGLD8ZaT");
+declare_id!("2zNmV9mTDc38fM45h41k8vSjzH8tVadovWXrCXWywbjw");
 
 #[ephemeral]
 #[program]
@@ -107,6 +107,14 @@ pub mod magic_trade {
         size_amount: u64,
     ) -> Result<()> {
         open_position::handler(ctx, collateral_amount, size_amount)
+    }
+
+    pub fn add_collateral_to_position(ctx: Context<AddCollateralToPosition>, amount: u64) -> Result<()> {
+        add_collateral_to_position::handler(ctx, amount)
+    }
+
+    pub fn remove_collateral_from_position(ctx: Context<RemoveCollateralFromPosition>, amount: u64) -> Result<()> {
+        remove_collateral_from_position::handler(ctx, amount)
     }
 
     pub fn close_position(ctx: Context<ClosePosition>) -> Result<()> {

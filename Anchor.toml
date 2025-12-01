@@ -5,8 +5,8 @@ package_manager = "yarn"
 resolution = true
 skip-lint = false
 
-[programs.localnet]
-magic_trade = "2TeQ6dYm2sG9hB5DKVTtLvC3ecZU4UaYRM8wwHsDMNN8"
+[programs.devnet]
+magic_trade = "2zNmV9mTDc38fM45h41k8vSjzH8tVadovWXrCXWywbjw"
 
 [registry]
 url = "https://api.apr.dev"

@@ -184,7 +184,7 @@ describe("magic-trade account initialization", () => {
       token1Mint,
       ownerToken1Account,
       admin.publicKey,
-      100_000_000
+      1_000_000_000
     );
 
     const permissions = {
@@ -449,7 +449,7 @@ describe("magic-trade account initialization", () => {
     console.log("add liquidity0 tx", add0Txn);
 
     const add1Txn = await program.methods
-      .addLiquidity(new anchor.BN(25_000_000))
+      .addLiquidity(new anchor.BN(250_000_000))
       .accountsPartial({
         owner: admin.publicKey,
         ownerTokenAccount: ownerToken1Account,
@@ -478,7 +478,7 @@ describe("magic-trade account initialization", () => {
   it("opens a position", async () => {
 
     const openTxn = await program.methods
-      .openPosition(new anchor.BN(10_000_000), new anchor.BN(2_000))
+      .openPosition(new anchor.BN(5_000_000), new anchor.BN(1_000))
       .accountsPartial({
         owner: admin.publicKey,
         basket: basketPda,
@@ -495,6 +495,48 @@ describe("magic-trade account initialization", () => {
 
     console.log("open position tx", openTxn);
   }).timeout(120_000);
+
+  it("add collateral to position", async () => {
+    const addCollateralAmount = new anchor.BN(5_000_000);
+
+    const addCollateralTxn = await program.methods
+      .addCollateralToPosition(addCollateralAmount)
+      .accountsPartial({
+        owner: admin.publicKey,
+        basket: basketPda,
+        market: market0Pda,
+        pool: poolPda,
+        collateralCustody: custody0Pda,
+        ownerCollateralAccount: ownerToken0Account,
+        custodyCollateralAccount: custody0TokenPda,
+        transferAuthority: transferAuthorityPda,
+        tokenProgram: TOKEN_PROGRAM_ID
+      })
+      .rpc();
+
+      console.log("Added collateral to position tx: ", addCollateralTxn);
+  });
+
+  it("remove collateral from position", async () => {
+    const removeCollateralAmount = new anchor.BN(2_000_000);
+
+    const removeCollateralTxn = await program.methods
+      .removeCollateralFromPosition(removeCollateralAmount)
+      .accountsPartial({
+        owner: admin.publicKey,
+        basket: basketPda,
+        market: market0Pda,
+        pool: poolPda,
+        collateralCustody: custody0Pda,
+        ownerCollateralAccount: ownerToken0Account,
+        custodyCollateralAccount: custody0TokenPda,
+        transferAuthority: transferAuthorityPda,
+        tokenProgram: TOKEN_PROGRAM_ID
+      })
+      .rpc();
+
+      console.log("remove collateral from position tx", removeCollateralTxn);
+  })
 
   it("closes a position", async () => {
     const closeTxn = await program.methods

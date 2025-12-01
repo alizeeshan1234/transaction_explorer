@@ -33,3 +33,9 @@ pub use liquidate_position::*;
 pub use open_position::*;
 pub use remove_liquidity::*;
 pub use withdraw_collateral::*;
+
+pub mod add_collateral_to_position;
+pub mod remove_collateral_from_position;
+
+pub use add_collateral_to_position::*;
+pub use remove_collateral_from_position::*;
