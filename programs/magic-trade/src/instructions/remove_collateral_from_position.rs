@@ -87,6 +87,11 @@ pub fn handler(ctx: Context<RemoveCollateralFromPosition>, amount: u64) -> Resul
         PlatformError::InsufficientCollateral
     );
 
+    require!(
+        custody.assets.owned >= amount,
+        PlatformError::InsufficientCollateral
+    );
+
     position.collateral_usd = position.collateral_usd
         .checked_sub(amount_usd)
         .ok_or(PlatformError::MathError)?;

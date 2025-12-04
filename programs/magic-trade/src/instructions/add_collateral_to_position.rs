@@ -80,6 +80,11 @@ pub fn handler(ctx: Context<AddCollateralToPosition>, amount: u64) -> Result<()>
 
     let amount_usd = collateral_price.get_asset_amount_usd(amount, custody.decimals)?;
 
+    require!(
+        custody.assets.reserved >= amount,
+        PlatformError::InsufficientCollateral
+    );
+
     custody.assets.reserved = custody
         .assets
         .reserved
