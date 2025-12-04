@@ -1,6 +1,7 @@
 use anchor_lang::prelude::*;
 use crate::{
-    constants::*, error::PlatformError, state::{basket::Basket, custody::Custody, market::Market, pool::Pool}
+    constants::*, error::PlatformError, market::OraclePrice, state::{basket::Basket, custody::Custody, market::Market, pool::Pool},
+    COLLATERAL_PRICE_MAX_AGE,
 };
 
 #[derive(Accounts)]
@@ -42,9 +43,25 @@ pub struct AddCollateralToPosition<'info> {
         bump = collateral_custody.custody_bump
     )]
     pub collateral_custody: Account<'info, Custody>,
+
+    /// CHECK: Oracle account validated by address
+    #[account(address = pool.collateral_oracle)]
+    pub collateral_oracle: UncheckedAccount<'info>,
+}
+
+#[event]
+pub struct AddCollateralLog {
+    pub owner: Pubkey,
+    pub market: Pubkey,
+    pub amount: u64,
+    pub amount_usd: u64,
+    pub final_collateral_usd: u64,
+    pub custody_owned: u64,
+    pub custody_reserved: u64,
 }
 
 pub fn handler(ctx: Context<AddCollateralToPosition>, amount: u64) -> Result<()> {
+    require!(amount > 0, PlatformError::InvalidInput);
 
     let basket = &mut ctx.accounts.basket;
     let custody = &mut ctx.accounts.collateral_custody;
@@ -54,46 +71,43 @@ pub fn handler(ctx: Context<AddCollateralToPosition>, amount: u64) -> Result<()>
         .get_position_index(&market_key)
         .ok_or(PlatformError::PositionNotFound)?;
 
-    // Decrement reserved assets
+    let curtime = Clock::get()?.unix_timestamp;
+    let collateral_price = OraclePrice::from_pyth(
+        &ctx.accounts.collateral_oracle,
+        curtime,
+        COLLATERAL_PRICE_MAX_AGE,
+    )?;
+
+    let amount_usd = collateral_price.get_asset_amount_usd(amount, custody.decimals)?;
+
     custody.assets.reserved = custody
         .assets
         .reserved
         .checked_sub(amount)
         .ok_or(PlatformError::InsufficientCollateral)?;
 
-    // Increment owned assets
     custody.assets.owned = custody
         .assets
         .owned
         .checked_add(amount)
         .ok_or(PlatformError::MathError)?;
 
-    // Add to position
     basket.positions[position_index].position.collateral_usd = 
         basket.positions[position_index]
             .position
             .collateral_usd
-            .checked_add(amount)
+            .checked_add(amount_usd)
             .ok_or(PlatformError::MathError)?;
 
-     emit!(CollateralAdded {
+    emit!(AddCollateralLog {
         owner: ctx.accounts.owner.key(),
         market: market_key,
         amount,
-        new_collateral: basket.positions[position_index].position.collateral_usd,
+        amount_usd,
+        final_collateral_usd: basket.positions[position_index].position.collateral_usd,
         custody_owned: custody.assets.owned,
         custody_reserved: custody.assets.reserved,
     });
 
     Ok(())
-}
-
-#[event]
-pub struct CollateralAdded {
-    pub owner: Pubkey,
-    pub market: Pubkey,
-    pub amount: u64,
-    pub new_collateral: u64,
-    pub custody_owned: u64,
-    pub custody_reserved: u64,
 }

@@ -1,6 +1,7 @@
 use anchor_lang::prelude::*;
 use crate::{
-    constants::*, error::PlatformError, state::{basket::Basket, custody::Custody, market::Market, pool::Pool}
+    constants::*, error::PlatformError, market::OraclePrice, state::{basket::Basket, custody::Custody, market::Market, pool::Pool},
+    COLLATERAL_PRICE_MAX_AGE, math,
 };
 
 #[derive(Accounts)]
@@ -10,7 +11,7 @@ pub struct RemoveCollateralFromPosition<'info> {
 
     #[account(
         mut,
-        seeds = [b"basket", owner.key().as_ref()],
+        seeds = [BASKET_SEED, owner.key().as_ref()],
         bump = basket.basket_bump
     )]
     pub basket: Account<'info, Basket>,
@@ -42,9 +43,25 @@ pub struct RemoveCollateralFromPosition<'info> {
         bump = collateral_custody.custody_bump
     )]
     pub collateral_custody: Account<'info, Custody>,
+
+    /// CHECK: Oracle account validated by address
+    #[account(address = pool.collateral_oracle)]
+    pub collateral_oracle: UncheckedAccount<'info>,
+}
+
+#[event]
+pub struct RemoveCollateralLog {
+    pub owner: Pubkey,
+    pub market: Pubkey,
+    pub amount: u64,
+    pub amount_usd: u64,
+    pub remaining_collateral_usd: u64,
+    pub custody_owned: u64,
+    pub custody_reserved: u64,
 }
 
 pub fn handler(ctx: Context<RemoveCollateralFromPosition>, amount: u64) -> Result<()> {
+    require!(amount > 0, PlatformError::InvalidInput);
 
     let basket = &mut ctx.accounts.basket;
     let custody = &mut ctx.accounts.collateral_custody;
@@ -56,45 +73,45 @@ pub fn handler(ctx: Context<RemoveCollateralFromPosition>, amount: u64) -> Resul
 
     let position = &mut basket.positions[position_index].position;
 
-    if position.collateral_usd < amount {
-        return Err(PlatformError::InsufficientCollateral.into());
-    }
+    let curtime = Clock::get()?.unix_timestamp;
+    let collateral_price = OraclePrice::from_pyth(
+        &ctx.accounts.collateral_oracle,
+        curtime,
+        COLLATERAL_PRICE_MAX_AGE,
+    )?;
 
-    // Remove from position
-    position.collateral_usd = position.collateral_usd.saturating_sub(amount);
+    let amount_usd = collateral_price.get_asset_amount_usd(amount, custody.decimals)?;
 
-    // Decrement owned assets
+    require!(
+        position.collateral_usd >= amount_usd,
+        PlatformError::InsufficientCollateral
+    );
+
+    position.collateral_usd = position.collateral_usd
+        .checked_sub(amount_usd)
+        .ok_or(PlatformError::MathError)?;
+
     custody.assets.owned = custody
         .assets
         .owned
         .checked_sub(amount)
         .ok_or(PlatformError::InsufficientCollateral)?;
 
-    // Increment reserved assets
     custody.assets.reserved = custody
         .assets
         .reserved
         .checked_add(amount)
         .ok_or(PlatformError::MathError)?;
 
-      emit!(CollateralRemoved {
+    emit!(RemoveCollateralLog {
         owner: ctx.accounts.owner.key(),
         market: market_key,
         amount,
-        remaining_collateral: position.collateral_usd,
+        amount_usd,
+        remaining_collateral_usd: position.collateral_usd,
         custody_owned: custody.assets.owned,
         custody_reserved: custody.assets.reserved,
     });
 
     Ok(())
-}
-
-#[event]
-pub struct CollateralRemoved {
-    pub owner: Pubkey,
-    pub market: Pubkey,
-    pub amount: u64,
-    pub remaining_collateral: u64,
-    pub custody_owned: u64,
-    pub custody_reserved: u64,
 }

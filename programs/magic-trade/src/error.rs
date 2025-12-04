@@ -133,5 +133,7 @@ pub enum PlatformError {
     MathError,
 
     #[msg("Insufficient collateral")]
-    InsufficientCollateral
+    InsufficientCollateral,
+
+    InvalidInput
 }
