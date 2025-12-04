@@ -1,6 +1,4 @@
 use anchor_lang::prelude::*;
-use anchor_spl::token::{Token, TokenAccount, Transfer};
-
 use crate::{
     constants::*, error::PlatformError, state::{basket::Basket, custody::Custody, market::Market, pool::Pool}
 };
@@ -35,6 +33,7 @@ pub struct RemoveCollateralFromPosition<'info> {
     pub pool: Account<'info, Pool>,
 
     #[account(
+        mut,
         seeds = [
             CUSTODY_SEED, 
             pool.key().as_ref(), 
@@ -43,34 +42,12 @@ pub struct RemoveCollateralFromPosition<'info> {
         bump = collateral_custody.custody_bump
     )]
     pub collateral_custody: Account<'info, Custody>,
-
-    #[account(
-        mut,
-        associated_token::mint = collateral_custody.token_mint,
-        associated_token::authority = owner
-    )]
-    pub owner_collateral_account: Account<'info, TokenAccount>,
-
-    #[account(
-        mut,
-        seeds = [TOKEN_ACCOUNT_SEED, collateral_custody.key().as_ref()],
-        bump,
-    )]
-    pub custody_collateral_account: Account<'info, TokenAccount>,
-
-    #[account(
-        seeds = [TOKEN_AUTHORITY_SEED],
-        bump
-    )]
-    pub transfer_authority: AccountInfo<'info>,
-
-    pub token_program: Program<'info, Token>,
-    
 }
 
 pub fn handler(ctx: Context<RemoveCollateralFromPosition>, amount: u64) -> Result<()> {
 
     let basket = &mut ctx.accounts.basket;
+    let custody = &mut ctx.accounts.collateral_custody;
     let market_key = ctx.accounts.market.key();
 
     let position_index = basket
@@ -83,32 +60,30 @@ pub fn handler(ctx: Context<RemoveCollateralFromPosition>, amount: u64) -> Resul
         return Err(PlatformError::InsufficientCollateral.into());
     }
 
+    // Remove from position
     position.collateral_usd = position.collateral_usd.saturating_sub(amount);
 
-    let authority_seeds: &[&[&[u8]]] = &[
-        &[
-            TOKEN_AUTHORITY_SEED,
-            &[ctx.bumps.transfer_authority]
-        ]
-    ];
+    // Decrement owned assets
+    custody.assets.owned = custody
+        .assets
+        .owned
+        .checked_sub(amount)
+        .ok_or(PlatformError::InsufficientCollateral)?;
 
-    let transfer_ctx = CpiContext::new_with_signer(
-        ctx.accounts.token_program.to_account_info(),
-        Transfer {
-            from: ctx.accounts.custody_collateral_account.to_account_info(),
-            to: ctx.accounts.owner_collateral_account.to_account_info(),
-            authority: ctx.accounts.transfer_authority.to_account_info()
-        },
-        authority_seeds
-    );
+    // Increment reserved assets
+    custody.assets.reserved = custody
+        .assets
+        .reserved
+        .checked_add(amount)
+        .ok_or(PlatformError::MathError)?;
 
-    anchor_spl::token::transfer(transfer_ctx, amount)?;
-
-    emit!(CollateralRemoved {
+      emit!(CollateralRemoved {
         owner: ctx.accounts.owner.key(),
         market: market_key,
         amount,
-        remaining_collateral: position.collateral_usd
+        remaining_collateral: position.collateral_usd,
+        custody_owned: custody.assets.owned,
+        custody_reserved: custody.assets.reserved,
     });
 
     Ok(())
@@ -120,4 +95,6 @@ pub struct CollateralRemoved {
     pub market: Pubkey,
     pub amount: u64,
     pub remaining_collateral: u64,
+    pub custody_owned: u64,
+    pub custody_reserved: u64,
 }

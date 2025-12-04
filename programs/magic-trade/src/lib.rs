@@ -13,7 +13,7 @@ pub use constants::*;
 pub use instructions::*;
 pub use state::*;
 
-declare_id!("2zNmV9mTDc38fM45h41k8vSjzH8tVadovWXrCXWywbjw");
+declare_id!("Di2sTfY9TQpZs73NCDBWAtXiDoYm4fMUsBVrt135rFDt");
 
 #[ephemeral]
 #[program]
@@ -153,3 +153,6 @@ pub mod magic_trade {
         delegate_basket::handler(ctx, commit_frequency, validator_key)
     }
 }
+
+
+// remove from custody and add to position only update collateranl nothing else no transfers

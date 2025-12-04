@@ -506,11 +506,7 @@ describe("magic-trade account initialization", () => {
         basket: basketPda,
         market: market0Pda,
         pool: poolPda,
-        collateralCustody: custody0Pda,
-        ownerCollateralAccount: ownerToken0Account,
-        custodyCollateralAccount: custody0TokenPda,
-        transferAuthority: transferAuthorityPda,
-        tokenProgram: TOKEN_PROGRAM_ID
+        collateralCustody: custody0Pda
       })
       .rpc();
 
@@ -528,10 +524,6 @@ describe("magic-trade account initialization", () => {
         market: market0Pda,
         pool: poolPda,
         collateralCustody: custody0Pda,
-        ownerCollateralAccount: ownerToken0Account,
-        custodyCollateralAccount: custody0TokenPda,
-        transferAuthority: transferAuthorityPda,
-        tokenProgram: TOKEN_PROGRAM_ID
       })
       .rpc();
 
