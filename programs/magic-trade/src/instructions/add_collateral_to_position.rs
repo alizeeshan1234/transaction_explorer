@@ -127,6 +127,9 @@ pub fn handler(ctx: Context<AddCollateralToPosition>, amount: u64) -> Result<()>
     msg!("Transfer collateral from reserved to owned");
     collateral_custody.reserved_to_owned(amount)?;
 
+    msg!("Transfer lock custody from reserved to owned");
+    lock_custody.reserved_to_owned(locked_amount)?;
+
     msg!("Lock funds in lock custody");
     lock_custody.lock_funds(locked_amount)?;
 

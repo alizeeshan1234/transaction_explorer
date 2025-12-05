@@ -3,7 +3,6 @@ use crate::{
     constants::*, error::PlatformError, market::OraclePrice, state::{basket::Basket, custody::Custody, market::Market, pool::Pool},
     COLLATERAL_PRICE_MAX_AGE,
 };
-
 #[derive(Accounts)]
 pub struct RemoveCollateralFromPosition<'info> {
     #[account(mut)]
@@ -132,6 +131,9 @@ pub fn handler(ctx: Context<RemoveCollateralFromPosition>, amount: u64) -> Resul
 
     msg!("Unlock funds from lock custody");
     lock_custody.unlock_funds(unlock_amount)?;
+
+    msg!("Transfer lock custody from owned to reserved");
+    lock_custody.owned_to_reserved(unlock_amount)?;
 
     msg!("Transfer collateral from owned to reserved");
     collateral_custody.owned_to_reserved(amount)?;
