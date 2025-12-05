@@ -6,7 +6,7 @@ resolution = true
 skip-lint = false
 
 [programs.devnet]
-magic_trade = "CGWjpZazegKjn1JupqdWBcEU6PpwL73wj1pwQjxGEhM3"
+magic_trade = "BbdrW7sXitcxkysgYiVszpiHMpaLf6aQkPaV71zaB8CA"
 
 [registry]
 url = "https://api.apr.dev"

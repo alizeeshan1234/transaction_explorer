@@ -507,7 +507,9 @@ describe("magic-trade account initialization", () => {
         market: market0Pda,
         pool: poolPda,
         collateralCustody: custody0Pda,
+        lockCustody: custody1Pda,
         collateralOracle: oracle0Pubkey,
+        lockOracle: oracle1Pubkey,
       })
       .rpc();
 
@@ -525,7 +527,9 @@ describe("magic-trade account initialization", () => {
         market: market0Pda,
         pool: poolPda,
         collateralCustody: custody0Pda,
+        lockCustody: custody1Pda,
         collateralOracle: oracle0Pubkey,
+        lockOracle: oracle1Pubkey,
       })
       .rpc();
 
