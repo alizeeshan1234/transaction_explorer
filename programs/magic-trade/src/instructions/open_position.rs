@@ -151,6 +151,7 @@ pub fn handler(ctx: Context<OpenPosition>, collateral_amount: u64, size_amount: 
     });
     basket.process_withdrawal(ctx.accounts.pool.key(), collateral_amount);
 
+    // Importent to to in add_collateral_to_position 
     ctx.accounts.market.add_position(&position)?;
     if ctx.accounts.collateral_custody.key() == ctx.accounts.lock_custody.key() {
         ctx.accounts
@@ -164,5 +165,7 @@ pub fn handler(ctx: Context<OpenPosition>, collateral_amount: u64, size_amount: 
             .reserved_to_owned(collateral_amount)?;
         ctx.accounts.lock_custody.lock_funds(lock_amount)?;
     }
+
+    msg!("Posiiton open successfully!");
     Ok(())
 }

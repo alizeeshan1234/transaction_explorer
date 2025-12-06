@@ -13,7 +13,7 @@ pub use constants::*;
 pub use instructions::*;
 pub use state::*;
 
-declare_id!("FiSuahp9miHdU5CXGsGQNzuXQiCgyezFEhRPpJhfQSLM");
+declare_id!("jcz3VicUEG4nqqC6PJm3aBN94W8gfYBT2T52ntR8dmu");
 
 #[ephemeral]
 #[program]

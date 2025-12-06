@@ -128,5 +128,6 @@ pub fn handler(ctx: Context<ClosePosition>) -> Result<()> {
             .owned_to_reserved(settle_amount)?;
     }
 
+    msg!("Position closed successfully!");
     Ok(())
 }

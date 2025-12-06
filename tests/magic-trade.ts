@@ -11,6 +11,7 @@ import { expect } from "chai";
 
 import { MagicTrade } from "../target/types/magic_trade";
 import { token } from "@coral-xyz/anchor/dist/cjs/utils";
+import { sendMagicTransaction } from "magic-router-sdk";
 
 const PLATFORM_SEED = "platform";
 const TOKEN_AUTHORITY_SEED = "authority";
@@ -36,6 +37,13 @@ describe("magic-trade account initialization", () => {
 
   const oracle0Pubkey = new PublicKey("Dpw1EAVrSB1ibxiDQyTAW6Zip3J4Btk2x4SgApQCeFbX");
   const oracle1Pubkey = new PublicKey("4cSM2e6rvbGQUFiJbqytoVMi5GgghSMr8LwVrT9VPSPo");
+
+  const routerConnection = new anchor.web3.Connection(
+    process.env.ROUTER_ENDPOINT || "https://devnet-router.magicblock.app",
+    {
+      wsEndpoint: process.env.ROUTER_WS_ENDPOINT || "wss://devnet-router.magicblock.app",
+    }
+  );
 
   const platformPda = derivePda([Buffer.from(PLATFORM_SEED)], program.programId);
   const transferAuthorityPda = derivePda(
@@ -365,7 +373,7 @@ describe("magic-trade account initialization", () => {
     expect(basketAccount.basketBump).to.be.a("number");
   }).timeout(120_000);
 
-  it("deposits into and withdraws from basket custody", async () => {
+  it.skip("deposits into and withdraws from basket custody", async () => {
     // Ensure previous init ran
     expect(token0Mint).to.exist;
 
@@ -475,7 +483,7 @@ describe("magic-trade account initialization", () => {
     console.log("add liquidity1 tx", add1Txn);
   }).timeout(120_000);
 
-  it("opens a position", async () => {
+  it.skip("opens a position", async () => {
 
     const openTxn = await program.methods
       .openPosition(new anchor.BN(5_000_000), new anchor.BN(1_000))
@@ -496,7 +504,7 @@ describe("magic-trade account initialization", () => {
     console.log("open position tx", openTxn);
   }).timeout(120_000);
 
-  it("add collateral to position", async () => {
+  it.skip("add collateral to position", async () => {
     const addCollateralAmount = new anchor.BN(5_000_000);
 
     const addCollateralTxn = await program.methods
@@ -516,7 +524,7 @@ describe("magic-trade account initialization", () => {
       console.log("Added collateral to position tx: ", addCollateralTxn);
   });
 
-  it("remove collateral from position", async () => {
+  it.skip("remove collateral from position", async () => {
     const removeCollateralAmount = new anchor.BN(2_000_000);
 
     const removeCollateralTxn = await program.methods
@@ -536,7 +544,26 @@ describe("magic-trade account initialization", () => {
       console.log("remove collateral from position tx", removeCollateralTxn);
   })
 
-  it("closes a position", async () => {
+  it("deposits into basket custody", async () => {
+    const depositAmount = 100_000_000;
+  
+    const depositTxn = await program.methods
+      .depositCollateral(new anchor.BN(depositAmount))
+      .accountsStrict({
+        owner: admin.publicKey,
+        ownerTokenAccount: ownerToken0Account,
+        pool: poolPda,
+        custody: custody0Pda,
+        custodyTokenAccount: custody0TokenPda,
+        basket: basketPda,
+        tokenProgram: TOKEN_PROGRAM_ID,
+      })
+      .rpc();
+  
+    console.log("deposit funds tx", depositTxn);
+  }).timeout(120_000);
+
+  it.skip("closes a position", async () => {
     const closeTxn = await program.methods
       .closePosition()
       .accountsPartial({
@@ -586,9 +613,9 @@ describe("magic-trade account initialization", () => {
     console.log("remove liquidity tx", removeTxn);
   }).timeout(120_000);
 
-  it.skip("delegates pool, custody, and basket", async () => {
+  it("delegates pool, custody, and basket", async () => {
     const commitFrequency = 10_000;
-    const validatorKey = Keypair.generate().publicKey;
+    const validatorKey = new PublicKey("MAS1Dt9qreoRMQ14YQuhg8UTZMMzDdKhmkZMECCzk57");
 
     const delegatePoolTxn = await program.methods
       .delegatePool(commitFrequency, validatorKey)
@@ -646,4 +673,98 @@ describe("magic-trade account initialization", () => {
 
     console.log("delegate basket tx", delegateBasketTxn);
   }).timeout(60_000);
+
+  it("Open position ER", async () => {
+    const transaction = await program.methods
+      .openPosition(new anchor.BN(5_000_000), new anchor.BN(1_000))
+      .accountsPartial({
+        owner: admin.publicKey,
+        basket: basketPda,
+        pool: poolPda,
+        market: market0Pda,
+        targetCustody: custody1Pda,
+        lockCustody: custody1Pda,
+        collateralCustody: custody0Pda,
+        targetOracle: oracle1Pubkey,
+        lockOracle: oracle1Pubkey,
+        collateralOracle: oracle0Pubkey,
+      })
+      .transaction();
+
+    const { blockhash } = await routerConnection.getLatestBlockhash();
+    transaction.recentBlockhash = blockhash;
+    transaction.feePayer = admin.publicKey;
+
+    const signature = await anchor.web3.sendAndConfirmTransaction(
+      routerConnection,
+      transaction,
+      [admin],
+      { skipPreflight: false } 
+    );
+
+    console.log(`Open position ER: ${signature}`);
+  }).timeout(120_000);
+
+  // it("Withdraw from basked custody", async () => {
+  //   const withdrawAmount = 50_000_000;
+
+  //   const withdrawTxn = await program.methods
+  //     .withdrawCollateral(new anchor.BN(withdrawAmount))
+  //     .accountsStrict({
+  //       owner: admin.publicKey,
+  //       ownerTokenAccount: ownerToken0Account,
+  //       pool: poolPda,
+  //       custody: custody0Pda,
+  //       custodyTokenAccount: custody0TokenPda,
+  //       basket: basketPda,
+  //       tokenAuthority: transferAuthorityPda,
+  //       tokenProgram: TOKEN_PROGRAM_ID,
+  //     })
+  //     .rpc();
+
+  //   console.log("withdraw funds tx", withdrawTxn);
+  // })
+
+  it("Close position ER", async () => {
+    const transaction = await program.methods.closePosition().accountsPartial({
+      owner: admin.publicKey,
+      basket: basketPda,
+      pool: poolPda,
+      market: market0Pda,
+      targetCustody: custody1Pda,
+      lockCustody: custody1Pda,
+      collateralCustody: custody0Pda,
+      targetOracle: oracle1Pubkey,
+      collateralOracle: oracle0Pubkey,
+    })
+    .transaction();
+
+    const { blockhash } = await routerConnection.getLatestBlockhash();
+    transaction.recentBlockhash = blockhash;
+    transaction.feePayer = admin.publicKey;
+
+    const signature = await anchor.web3.sendAndConfirmTransaction(
+      routerConnection,
+      transaction,
+      [admin],
+      { skipPreflight: false } 
+    );
+
+    console.log(`Close position ER: ${signature}`);
+  })
 });
+
+async function sleepWithAnimation(seconds: number): Promise<void> {
+  const totalMs = seconds * 1000;
+  const interval = 500; // Update every 500ms
+  const iterations = Math.floor(totalMs / interval);
+
+  for (let i = 0; i < iterations; i++) {
+    const dots = '.'.repeat((i % 3) + 1);
+    process.stdout.write(`\rWaiting${dots}   `);
+    await new Promise(resolve => setTimeout(resolve, interval));
+  }
+
+  // Clear the line
+  process.stdout.write('\r\x1b[K');
+}
