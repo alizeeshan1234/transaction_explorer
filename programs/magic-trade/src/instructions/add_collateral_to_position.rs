@@ -1,7 +1,6 @@
 use anchor_lang::prelude::*;
 use crate::{
-    constants::*, error::PlatformError, market::OraclePrice, state::{basket::Basket, custody::Custody, market::Market, pool::Pool},
-    COLLATERAL_PRICE_MAX_AGE,
+    COLLATERAL_PRICE_MAX_AGE, constants::*, error::PlatformError, market::OraclePrice, math, state::{basket::Basket, custody::Custody, market::Market, pool::Pool}
 };
 
 #[derive(Accounts)]
@@ -34,6 +33,12 @@ pub struct AddCollateralToPosition<'info> {
     pub pool: Account<'info, Pool>,
 
     #[account(
+        seeds = [CUSTODY_SEED, pool.key().as_ref(), &[target_custody.id]],
+        bump = target_custody.custody_bump
+    )]
+    pub target_custody: Account<'info, Custody>,
+
+    #[account(
         mut,
         seeds = [
             CUSTODY_SEED, 
@@ -56,6 +61,10 @@ pub struct AddCollateralToPosition<'info> {
     pub lock_custody: Account<'info, Custody>,
 
     /// CHECK: Oracle account validated by address
+    #[account(address = target_custody.oracle)]
+    pub target_oracle: UncheckedAccount<'info>,
+
+    /// CHECK: Oracle account validated by address
     #[account(address = pool.collateral_oracle)]
     pub collateral_oracle: UncheckedAccount<'info>,
 
@@ -65,93 +74,115 @@ pub struct AddCollateralToPosition<'info> {
 }
 
 #[event]
-pub struct AddCollateralLog {
+pub struct AddCollateralToPositionLog {
     pub owner: Pubkey,
     pub market: Pubkey,
-    pub amount: u64,
-    pub amount_usd: u64,
-    pub final_collateral_usd: u64,
-    pub locked_amount: u64,
-    pub custody_owned: u64,
-    pub custody_reserved: u64,
+    pub collateral_amount: u64,      // ← Better name than "amount"
+    pub collateral_usd: u64,          // ← You have this
+    pub size_amount: u64,             // ← Missing! Important to track size increase
+    pub size_usd: u64,                // ← Missing! Important to track position growth
+    pub locked_amount: u64,           // ← Good
+    pub position_leverage: u128,      // ← Could add leverage for monitoring
+    pub custody_owned: u64,           // ← Good
+    pub custody_reserved: u64,        // ← Good
+    pub timestamp: i64,               // ← Good for audit trail
 }
 
-pub fn handler(ctx: Context<AddCollateralToPosition>, amount: u64) -> Result<()> {
-    msg!("Validate inputs");
-    require!(amount > 0, PlatformError::InvalidInput);
+pub fn handler(ctx: Context<AddCollateralToPosition>, collateral_amount: u64, size_amount: u64) -> Result<()> {
 
     let basket = &mut ctx.accounts.basket;
-    let collateral_custody = &mut ctx.accounts.collateral_custody;
-    let lock_custody = &mut ctx.accounts.lock_custody;
     let market_key = ctx.accounts.market.key();
 
-    msg!("Get position index");
+    require!(
+        basket.get_deposit_amount(&ctx.accounts.pool.key()) >= collateral_amount,
+        PlatformError::InvalidBasketState
+    );
+
+    let current_time = Clock::get()?.unix_timestamp;
+    let entry_price = OraclePrice::from_pyth(
+        &ctx.accounts.target_oracle,
+        current_time,
+        ctx.accounts.target_custody.max_price_age as i64,
+    )?;
+
+    let lock_price = OraclePrice::from_pyth(
+        &ctx.accounts.lock_oracle,
+        current_time,
+        ctx.accounts.lock_custody.max_price_age as i64,
+    )?;
+    
+    let collateral_price = OraclePrice::from_pyth(
+        &ctx.accounts.collateral_oracle,
+        current_time,
+        COLLATERAL_PRICE_MAX_AGE,
+    )?;
+
+    let size_usd = entry_price.get_asset_amount_usd(size_amount, ctx.accounts.target_custody.decimals)?;
+
+    let entry_fee_usd = ctx
+        .accounts
+        .pool
+        .get_fee_value(ctx.accounts.target_custody.trade_fee, size_usd)?;
+
+    let collateral_usd = math::checked_sub(
+        collateral_price.get_asset_amount_usd(collateral_amount, COLLATERAL_DECIMALS)?,
+        entry_fee_usd,
+    )?;
+
+    let lock_amount = lock_price.get_token_amount(
+        size_usd.saturating_add(collateral_usd),
+        ctx.accounts.lock_custody.decimals,
+    )?;
+
     let position_index = basket
         .get_position_index(&market_key)
         .ok_or(PlatformError::PositionNotFound)?;
 
     let position = &mut basket.positions[position_index].position;
+    require_eq!(position.is_open(), true, PlatformError::InvalidBasketState);
 
-    msg!("Fetch collateral price from oracle");
-    let curtime = Clock::get()?.unix_timestamp;
-    let collateral_price = OraclePrice::from_pyth(
-        &ctx.accounts.collateral_oracle,
-        curtime,
-        COLLATERAL_PRICE_MAX_AGE,
-    )?;
+    if ctx.accounts.collateral_custody.key() == ctx.accounts.lock_custody.key() {
+        ctx.accounts.lock_custody.reserved_to_owned(collateral_amount)?;
+        ctx.accounts.lock_custody.lock_funds(lock_amount)?;
+    } else {
+        ctx.accounts.collateral_custody.reserved_to_owned(collateral_amount)?;
+        ctx.accounts.lock_custody.lock_funds(lock_amount)?;
+    }
 
-    msg!("Fetch lock custody price from oracle");
-    let lock_price = OraclePrice::from_pyth(
-        &ctx.accounts.lock_oracle,
-        curtime,
-        lock_custody.max_price_age as i64,
-    )?;
+    position.size_amount = position.size_amount.checked_add(size_amount).ok_or(PlatformError::MathError)?;
+    position.size_usd = position.size_usd.checked_add(size_usd).ok_or(PlatformError::MathError)?;
+    position.locked_amount = position.locked_amount.checked_add(lock_amount).ok_or(PlatformError::MathError)?;
+    position.collateral_usd = position.collateral_usd.checked_add(collateral_usd).ok_or(PlatformError::MathError)?;
 
-    msg!("Convert collateral amount to USD");
-    let amount_usd = collateral_price.get_asset_amount_usd(amount, collateral_custody.decimals)?;
+    let leverage = position.get_leverage_and_margin(
+        ctx.accounts.market.side,
+        &entry_price,
+        current_time,
+        ctx.accounts.target_custody.margin_params.virtual_delay,
+        true,
+        entry_fee_usd
+    )?.0;
 
-    msg!("Calculate locked amount in lock custody tokens");
-    let locked_amount = lock_price.get_token_amount(amount_usd, lock_custody.decimals)?;
-
-    msg!("Calculate final collateral after addition");
-    let final_collateral_usd = position.collateral_usd
-        .checked_add(amount_usd)
-        .ok_or(PlatformError::MathError)?;
-
-    msg!("Check minimum collateral requirement");
-    require!(
-        final_collateral_usd >= collateral_custody.margin_params.min_collateral_usd as u64,
-        PlatformError::MinCollateral
+    require_gte!(
+        ctx.accounts.target_custody.margin_params.max_init_leverage as u128,
+        leverage,
+        PlatformError::MaxInitLeverage
     );
 
-    msg!("Transfer collateral from reserved to owned");
-    collateral_custody.reserved_to_owned(amount)?;
+    basket.process_withdrawal(ctx.accounts.pool.key(), collateral_amount);    
 
-    msg!("Transfer lock custody from reserved to owned");
-    lock_custody.reserved_to_owned(locked_amount)?;
-
-    msg!("Lock funds in lock custody");
-    lock_custody.lock_funds(locked_amount)?;
-
-    msg!("Update position collateral USD");
-    position.collateral_usd = final_collateral_usd;
-
-    msg!("Update position locked amount");
-    position.locked_amount = position.locked_amount
-        .checked_add(locked_amount)
-        .ok_or(PlatformError::MathError)?;
-
-    msg!("Emit event");
-    emit!(AddCollateralLog {
+    emit!(AddCollateralToPositionLog {
         owner: ctx.accounts.owner.key(),
         market: market_key,
-        amount,
-        amount_usd,
-        final_collateral_usd,
-        locked_amount,
-        custody_owned: collateral_custody.assets.owned,
-        custody_reserved: collateral_custody.assets.reserved,
+        collateral_amount,
+        collateral_usd,
+        size_amount,
+        size_usd,
+        locked_amount: ctx.accounts.basket.positions[position_index].position.locked_amount,
+        position_leverage: leverage,
+        custody_owned: ctx.accounts.collateral_custody.assets.owned,
+        custody_reserved: ctx.accounts.collateral_custody.assets.reserved,
+        timestamp: current_time,
     });
-
     Ok(())
 }

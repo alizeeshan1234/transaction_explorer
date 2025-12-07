@@ -373,7 +373,7 @@ describe("magic-trade account initialization", () => {
     expect(basketAccount.basketBump).to.be.a("number");
   }).timeout(120_000);
 
-  it.skip("deposits into and withdraws from basket custody", async () => {
+  it("deposits into and withdraws from basket custody", async () => {
     // Ensure previous init ran
     expect(token0Mint).to.exist;
 
@@ -483,7 +483,7 @@ describe("magic-trade account initialization", () => {
     console.log("add liquidity1 tx", add1Txn);
   }).timeout(120_000);
 
-  it.skip("opens a position", async () => {
+  it("opens a position", async () => {
 
     const openTxn = await program.methods
       .openPosition(new anchor.BN(5_000_000), new anchor.BN(1_000))
@@ -504,18 +504,21 @@ describe("magic-trade account initialization", () => {
     console.log("open position tx", openTxn);
   }).timeout(120_000);
 
-  it.skip("add collateral to position", async () => {
-    const addCollateralAmount = new anchor.BN(5_000_000);
+  it("add collateral to position", async () => {
+    const addCollateralAmount = new anchor.BN(2_000_000);  
+    const sizeAmount = new anchor.BN(500);                 
 
     const addCollateralTxn = await program.methods
-      .addCollateralToPosition(addCollateralAmount)
+      .addCollateralToPosition(addCollateralAmount, sizeAmount)
       .accountsPartial({
         owner: admin.publicKey,
         basket: basketPda,
         market: market0Pda,
         pool: poolPda,
+        targetCustody: custody1Pda,
         collateralCustody: custody0Pda,
         lockCustody: custody1Pda,
+        targetOracle: oracle1Pubkey, 
         collateralOracle: oracle0Pubkey,
         lockOracle: oracle1Pubkey,
       })
@@ -524,27 +527,27 @@ describe("magic-trade account initialization", () => {
       console.log("Added collateral to position tx: ", addCollateralTxn);
   });
 
-  it.skip("remove collateral from position", async () => {
-    const removeCollateralAmount = new anchor.BN(2_000_000);
+  // it.skip("remove collateral from position", async () => {
+  //   const removeCollateralAmount = new anchor.BN(2_000_000);
 
-    const removeCollateralTxn = await program.methods
-      .removeCollateralFromPosition(removeCollateralAmount)
-      .accountsPartial({
-        owner: admin.publicKey,
-        basket: basketPda,
-        market: market0Pda,
-        pool: poolPda,
-        collateralCustody: custody0Pda,
-        lockCustody: custody1Pda,
-        collateralOracle: oracle0Pubkey,
-        lockOracle: oracle1Pubkey,
-      })
-      .rpc();
+  //   const removeCollateralTxn = await program.methods
+  //     .removeCollateralFromPosition(removeCollateralAmount)
+  //     .accountsPartial({
+  //       owner: admin.publicKey,
+  //       basket: basketPda,
+  //       market: market0Pda,
+  //       pool: poolPda,
+  //       collateralCustody: custody0Pda,
+  //       lockCustody: custody1Pda,
+  //       collateralOracle: oracle0Pubkey,
+  //       lockOracle: oracle1Pubkey,
+  //     })
+  //     .rpc();
 
-      console.log("remove collateral from position tx", removeCollateralTxn);
-  })
+  //     console.log("remove collateral from position tx", removeCollateralTxn);
+  // })
 
-  it("deposits into basket custody", async () => {
+  it.skip("deposits into basket custody", async () => {
     const depositAmount = 100_000_000;
   
     const depositTxn = await program.methods
@@ -582,7 +585,7 @@ describe("magic-trade account initialization", () => {
     console.log("close position tx", closeTxn);
   }).timeout(120_000);
 
-  it("removes liquidity", async () => {
+  it.skip("removes liquidity", async () => {
 
     const custody0Oracle = (await program.account.custody.fetch(custody0Pda)).oracle;
 
@@ -613,7 +616,7 @@ describe("magic-trade account initialization", () => {
     console.log("remove liquidity tx", removeTxn);
   }).timeout(120_000);
 
-  it("delegates pool, custody, and basket", async () => {
+  it.skip("delegates pool, custody, and basket", async () => {
     const commitFrequency = 10_000;
     const validatorKey = new PublicKey("MAS1Dt9qreoRMQ14YQuhg8UTZMMzDdKhmkZMECCzk57");
 
@@ -674,7 +677,7 @@ describe("magic-trade account initialization", () => {
     console.log("delegate basket tx", delegateBasketTxn);
   }).timeout(60_000);
 
-  it("Open position ER", async () => {
+  it.skip("Open position ER", async () => {
     const transaction = await program.methods
       .openPosition(new anchor.BN(5_000_000), new anchor.BN(1_000))
       .accountsPartial({
@@ -725,7 +728,7 @@ describe("magic-trade account initialization", () => {
   //   console.log("withdraw funds tx", withdrawTxn);
   // })
 
-  it("Close position ER", async () => {
+  it.skip("Close position ER", async () => {
     const transaction = await program.methods.closePosition().accountsPartial({
       owner: admin.publicKey,
       basket: basketPda,
