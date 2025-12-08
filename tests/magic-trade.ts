@@ -566,7 +566,7 @@ describe("magic-trade account initialization", () => {
     console.log("deposit funds tx", depositTxn);
   }).timeout(120_000);
 
-  it.skip("closes a position", async () => {
+  it("closes a position", async () => {
     const closeTxn = await program.methods
       .closePosition()
       .accountsPartial({

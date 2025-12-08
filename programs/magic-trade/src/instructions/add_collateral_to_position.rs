@@ -16,6 +16,7 @@ pub struct AddCollateralToPosition<'info> {
     pub basket: Account<'info, Basket>,
 
     #[account(
+        mut,
         seeds = [
             MARKET_SEED,
             market.target_custody.key().as_ref(),
@@ -77,15 +78,15 @@ pub struct AddCollateralToPosition<'info> {
 pub struct AddCollateralToPositionLog {
     pub owner: Pubkey,
     pub market: Pubkey,
-    pub collateral_amount: u64,      // ← Better name than "amount"
-    pub collateral_usd: u64,          // ← You have this
-    pub size_amount: u64,             // ← Missing! Important to track size increase
-    pub size_usd: u64,                // ← Missing! Important to track position growth
-    pub locked_amount: u64,           // ← Good
-    pub position_leverage: u128,      // ← Could add leverage for monitoring
-    pub custody_owned: u64,           // ← Good
-    pub custody_reserved: u64,        // ← Good
-    pub timestamp: i64,               // ← Good for audit trail
+    pub collateral_amount: u64,
+    pub collateral_usd: u64,
+    pub size_amount: u64,
+    pub size_usd: u64,
+    pub locked_amount: u64,
+    pub position_leverage: u128,
+    pub custody_owned: u64,
+    pub custody_reserved: u64,
+    pub timestamp: i64,
 }
 
 pub fn handler(ctx: Context<AddCollateralToPosition>, collateral_amount: u64, size_amount: u64) -> Result<()> {
@@ -93,12 +94,25 @@ pub fn handler(ctx: Context<AddCollateralToPosition>, collateral_amount: u64, si
     let basket = &mut ctx.accounts.basket;
     let market_key = ctx.accounts.market.key();
 
+    msg!("Owner: {}", ctx.accounts.owner.key());
+    msg!("Market: {}", market_key);
+    msg!("Input collateral_amount: {}", collateral_amount);
+    msg!("Input size_amount: {}", size_amount);
+
+    let available_deposit = basket.get_deposit_amount(&ctx.accounts.pool.key());
+    msg!("Basket State: ");
+    msg!("Available deposit in basket: {}", available_deposit);
+    msg!("Required collateral: {}", collateral_amount);
+    
     require!(
-        basket.get_deposit_amount(&ctx.accounts.pool.key()) >= collateral_amount,
+        available_deposit >= collateral_amount,
         PlatformError::InvalidBasketState
     );
+    msg!("Deposit check passed");
 
     let current_time = Clock::get()?.unix_timestamp;
+    msg!("Current time: {}", current_time);
+
     let entry_price = OraclePrice::from_pyth(
         &ctx.accounts.target_oracle,
         current_time,
@@ -117,6 +131,11 @@ pub fn handler(ctx: Context<AddCollateralToPosition>, collateral_amount: u64, si
         COLLATERAL_PRICE_MAX_AGE,
     )?;
 
+    msg!("Oracle Prices");
+    msg!("Entry price: {} (exponent: {})", entry_price.price, entry_price.exponent);
+    msg!("Lock price: {} (exponent: {})", lock_price.price, lock_price.exponent);
+    msg!("Collateral price: {} (exponent: {})", collateral_price.price, collateral_price.exponent);
+
     let size_usd = entry_price.get_asset_amount_usd(size_amount, ctx.accounts.target_custody.decimals)?;
 
     let entry_fee_usd = ctx
@@ -134,25 +153,84 @@ pub fn handler(ctx: Context<AddCollateralToPosition>, collateral_amount: u64, si
         ctx.accounts.lock_custody.decimals,
     )?;
 
+    msg!("Calculated Values");
+    msg!("size_usd: {}", size_usd);
+    msg!("entry_fee_usd: {}", entry_fee_usd);
+    msg!("collateral_usd: {}", collateral_usd);
+    msg!("lock_amount: {}", lock_amount);
+
     let position_index = basket
         .get_position_index(&market_key)
         .ok_or(PlatformError::PositionNotFound)?;
 
+    msg!("Position index found: {}", position_index);
+
     let position = &mut basket.positions[position_index].position;
+    
+    msg!("POSITION STATE BEFORE: ");
+    msg!("Position is_open: {}", position.is_open());
+    msg!("size_amount: {}", position.size_amount);
+    msg!("size_usd: {}", position.size_usd);
+    msg!("collateral_usd: {}", position.collateral_usd);
+    msg!("locked_amount: {}", position.locked_amount);
+    msg!("entry_price: {} (exp: {})", position.entry_price.price, position.entry_price.exponent);
+
     require_eq!(position.is_open(), true, PlatformError::InvalidBasketState);
+    msg!("Position is open");
+    msg!("CUSTODY STATE BEFORE: ");
+    msg!("Collateral custody:");
+    msg!("owned: {}", ctx.accounts.collateral_custody.assets.owned);
+    msg!("reserved: {}", ctx.accounts.collateral_custody.assets.reserved);
+    msg!("locked: {}", ctx.accounts.collateral_custody.assets.locked);
+    
+    msg!("Lock custody:");
+    msg!("owned: {}", ctx.accounts.lock_custody.assets.owned);
+    msg!("reserved: {}", ctx.accounts.lock_custody.assets.reserved);
+    msg!("locked: {}", ctx.accounts.lock_custody.assets.locked);
+
+    msg!("MARKET STATE BEFORE: ");
+    msg!("Market collective_position:");
+    msg!("size_amount: {}", ctx.accounts.market.collective_position.size_amount);
+    msg!("size_usd: {}", ctx.accounts.market.collective_position.size_usd);
+    msg!("collateral_usd: {}", ctx.accounts.market.collective_position.collateral_usd);
+    msg!("locked_amount: {}", ctx.accounts.market.collective_position.locked_amount);
+    msg!("open_positions: {}", ctx.accounts.market.open_positions);
 
     if ctx.accounts.collateral_custody.key() == ctx.accounts.lock_custody.key() {
+        msg!("Collateral custody == Lock custody (same account)");
         ctx.accounts.lock_custody.reserved_to_owned(collateral_amount)?;
+        msg!("Moved {} from reserved to owned", collateral_amount);
         ctx.accounts.lock_custody.lock_funds(lock_amount)?;
+        msg!("Locked {} funds", lock_amount);
     } else {
+        msg!("Collateral custody != Lock custody (different accounts)");
         ctx.accounts.collateral_custody.reserved_to_owned(collateral_amount)?;
+        msg!("Moved {} from reserved to owned in collateral_custody", collateral_amount);
         ctx.accounts.lock_custody.lock_funds(lock_amount)?;
+        msg!("Locked {} funds in lock_custody", lock_amount);
     }
+
+    msg!("CUSTODY STATE AFTER TRANSFERS: ");
+    msg!("Collateral custody:");
+    msg!("owned: {}", ctx.accounts.collateral_custody.assets.owned);
+    msg!("reserved: {}", ctx.accounts.collateral_custody.assets.reserved);
+    msg!("locked: {}", ctx.accounts.collateral_custody.assets.locked);
+    
+    msg!("Lock custody:");
+    msg!("owned: {}", ctx.accounts.lock_custody.assets.owned);
+    msg!("reserved: {}", ctx.accounts.lock_custody.assets.reserved);
+    msg!("locked: {}", ctx.accounts.lock_custody.assets.locked);
 
     position.size_amount = position.size_amount.checked_add(size_amount).ok_or(PlatformError::MathError)?;
     position.size_usd = position.size_usd.checked_add(size_usd).ok_or(PlatformError::MathError)?;
     position.locked_amount = position.locked_amount.checked_add(lock_amount).ok_or(PlatformError::MathError)?;
     position.collateral_usd = position.collateral_usd.checked_add(collateral_usd).ok_or(PlatformError::MathError)?;
+
+    msg!("POSITION STATE AFTER UPDATE: ");
+    msg!("size_amount: {}", position.size_amount);
+    msg!("size_usd: {}", position.size_usd);
+    msg!("collateral_usd: {}", position.collateral_usd);
+    msg!("locked_amount: {}", position.locked_amount);
 
     let leverage = position.get_leverage_and_margin(
         ctx.accounts.market.side,
@@ -169,7 +247,37 @@ pub fn handler(ctx: Context<AddCollateralToPosition>, collateral_amount: u64, si
         PlatformError::MaxInitLeverage
     );
 
-    basket.process_withdrawal(ctx.accounts.pool.key(), collateral_amount);    
+    msg!("MARKET STATE BEFORE COLLECTIVE UPDATE: ");
+    msg!("collective_position.size_amount: {} → {}", 
+        ctx.accounts.market.collective_position.size_amount,
+        ctx.accounts.market.collective_position.size_amount + size_amount
+    );
+    msg!("collective_position.size_usd: {} → {}", 
+        ctx.accounts.market.collective_position.size_usd,
+        ctx.accounts.market.collective_position.size_usd + size_usd
+    );
+
+    ctx.accounts.market.collective_position.size_amount = 
+        math::checked_add(ctx.accounts.market.collective_position.size_amount, size_amount)?;
+    ctx.accounts.market.collective_position.size_usd = 
+        math::checked_add(ctx.accounts.market.collective_position.size_usd, size_usd)?;
+    ctx.accounts.market.collective_position.locked_amount = 
+        math::checked_add(ctx.accounts.market.collective_position.locked_amount, lock_amount)?;
+    ctx.accounts.market.collective_position.collateral_usd = 
+        math::checked_add(ctx.accounts.market.collective_position.collateral_usd, collateral_usd)?;
+
+    msg!("MARKET STATE AFTER COLLECTIVE UPDATE: ");
+    msg!("collective_position.size_amount: {}", ctx.accounts.market.collective_position.size_amount);
+    msg!("collective_position.size_usd: {}", ctx.accounts.market.collective_position.size_usd);
+    msg!("collective_position.collateral_usd: {}", ctx.accounts.market.collective_position.collateral_usd);
+    msg!("collective_position.locked_amount: {}", ctx.accounts.market.collective_position.locked_amount);
+
+    basket.process_withdrawal(ctx.accounts.pool.key(), collateral_amount);
+    msg!("✓ Processed withdrawal from basket");
+
+    msg!("FINAL BASKET STATE: ");
+    let final_deposit = basket.get_deposit_amount(&ctx.accounts.pool.key());
+    msg!("Remaining deposit: {}", final_deposit);
 
     emit!(AddCollateralToPositionLog {
         owner: ctx.accounts.owner.key(),
