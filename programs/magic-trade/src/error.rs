@@ -135,5 +135,11 @@ pub enum PlatformError {
     #[msg("Insufficient collateral")]
     InsufficientCollateral,
 
-    InvalidInput
+    InvalidInput,
+
+    MinInitLeverage,
+
+    InsufficientPositionSize,
+    
+    InsufficientLockedAmount
 }
