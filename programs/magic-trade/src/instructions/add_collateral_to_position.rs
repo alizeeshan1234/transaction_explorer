@@ -138,15 +138,7 @@ pub fn handler(ctx: Context<AddCollateralToPosition>, collateral_amount: u64, si
 
     let size_usd = entry_price.get_asset_amount_usd(size_amount, ctx.accounts.target_custody.decimals)?;
 
-    let entry_fee_usd = ctx
-        .accounts
-        .pool
-        .get_fee_value(ctx.accounts.target_custody.trade_fee, size_usd)?;
-
-    let collateral_usd = math::checked_sub(
-        collateral_price.get_asset_amount_usd(collateral_amount, COLLATERAL_DECIMALS)?,
-        entry_fee_usd,
-    )?;
+    let collateral_usd = collateral_price.get_asset_amount_usd(collateral_amount, COLLATERAL_DECIMALS)?;
 
     let lock_amount = lock_price.get_token_amount(
         size_usd.saturating_add(collateral_usd),
@@ -155,7 +147,6 @@ pub fn handler(ctx: Context<AddCollateralToPosition>, collateral_amount: u64, si
 
     msg!("Calculated Values");
     msg!("size_usd: {}", size_usd);
-    msg!("entry_fee_usd: {}", entry_fee_usd);
     msg!("collateral_usd: {}", collateral_usd);
     msg!("lock_amount: {}", lock_amount);
 
@@ -195,6 +186,11 @@ pub fn handler(ctx: Context<AddCollateralToPosition>, collateral_amount: u64, si
     msg!("collateral_usd: {}", ctx.accounts.market.collective_position.collateral_usd);
     msg!("locked_amount: {}", ctx.accounts.market.collective_position.locked_amount);
     msg!("open_positions: {}", ctx.accounts.market.open_positions);
+
+    let available_to_lock = ctx.accounts.lock_custody.available_to_lock();
+    msg!("Available to lock: {}, Required: {}", available_to_lock, lock_amount);
+
+    require!(available_to_lock >= lock_amount, PlatformError::InvalidCollateralCustody);
 
     if ctx.accounts.collateral_custody.key() == ctx.accounts.lock_custody.key() {
         msg!("Collateral custody == Lock custody (same account)");
@@ -238,7 +234,7 @@ pub fn handler(ctx: Context<AddCollateralToPosition>, collateral_amount: u64, si
         current_time,
         ctx.accounts.target_custody.margin_params.virtual_delay,
         true,
-        entry_fee_usd
+        0
     )?.0;
 
     require_gte!(
@@ -273,9 +269,8 @@ pub fn handler(ctx: Context<AddCollateralToPosition>, collateral_amount: u64, si
     msg!("collective_position.locked_amount: {}", ctx.accounts.market.collective_position.locked_amount);
 
     basket.process_withdrawal(ctx.accounts.pool.key(), collateral_amount);
-    msg!("✓ Processed withdrawal from basket");
+    msg!("Processed withdrawal from basket");
 
-    msg!("FINAL BASKET STATE: ");
     let final_deposit = basket.get_deposit_amount(&ctx.accounts.pool.key());
     msg!("Remaining deposit: {}", final_deposit);
 
@@ -294,3 +289,5 @@ pub fn handler(ctx: Context<AddCollateralToPosition>, collateral_amount: u64, si
     });
     Ok(())
 }
+
+
