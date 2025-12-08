@@ -527,25 +527,25 @@ describe("magic-trade account initialization", () => {
       console.log("Added collateral to position tx: ", addCollateralTxn);
   });
 
-  // it.skip("remove collateral from position", async () => {
-  //   const removeCollateralAmount = new anchor.BN(2_000_000);
+  it("remove collateral from position", async () => {
+    const removeCollateralAmount = new anchor.BN(1_000_000);  
+    const sizeAmount = new anchor.BN(250);    
 
-  //   const removeCollateralTxn = await program.methods
-  //     .removeCollateralFromPosition(removeCollateralAmount)
-  //     .accountsPartial({
-  //       owner: admin.publicKey,
-  //       basket: basketPda,
-  //       market: market0Pda,
-  //       pool: poolPda,
-  //       collateralCustody: custody0Pda,
-  //       lockCustody: custody1Pda,
-  //       collateralOracle: oracle0Pubkey,
-  //       lockOracle: oracle1Pubkey,
-  //     })
-  //     .rpc();
+    const removeCollateralTxn = await program.methods.removeCollateralFromPosition(removeCollateralAmount, sizeAmount).accountsPartial({
+      owner: admin.publicKey,
+      basket: basketPda,
+      market: market0Pda,
+      pool: poolPda,
+      targetCustody: custody1Pda,
+      collateralCustody: custody0Pda,
+      lockCustody: custody1Pda,
+      targetOracle: oracle1Pubkey, 
+      collateralOracle: oracle0Pubkey,
+      lockOracle: oracle1Pubkey,
+    }).rpc();
 
-  //     console.log("remove collateral from position tx", removeCollateralTxn);
-  // })
+    console.log("remove collateral from position tx: ", removeCollateralTxn);
+  })
 
   it.skip("deposits into basket custody", async () => {
     const depositAmount = 100_000_000;
