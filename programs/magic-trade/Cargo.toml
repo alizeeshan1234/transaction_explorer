@@ -23,7 +23,7 @@ custom-panic = []
 [dependencies]
 anchor-lang = "0.32.1"
 anchor-spl = "0.32.1"
-ephemeral-rollups-sdk = { version = "0.4.0", features = ["anchor"]}
+ephemeral-rollups-sdk = { version = "0.6.5", features = ["anchor"]}
 num-traits = "0.2.19"
 pyth-solana-receiver-sdk = "1.1.0"
 

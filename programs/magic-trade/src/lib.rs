@@ -7,17 +7,23 @@ pub mod math;
 pub mod state;
 
 use anchor_lang::prelude::*;
-use ephemeral_rollups_sdk::anchor::ephemeral;
+use ephemeral_rollups_sdk::anchor::{commit, ephemeral};
 
 pub use constants::*;
 pub use instructions::*;
 pub use state::*;
 
-declare_id!("BPGVFNBw8fTgvxQpW1UwLdK1MvLbbx3Afkckm3KbhXHT");
+use crate::{
+    COLLATERAL_PRICE_MAX_AGE, constants::*, error::PlatformError, market::OraclePrice, state::{basket::Basket, custody::Custody, market::Market, pool::Pool}
+};
+
+declare_id!("69kkot4VoLAEn7kJMQwzHUYDyPZ16S6D84oixwuFMREx");
 
 #[ephemeral]
 #[program]
 pub mod magic_trade {
+
+    use ephemeral_rollups_sdk::{ActionArgs, ShortAccountMeta, ephem::{CallHandler, CommitAndUndelegate, CommitType, MagicAction, MagicInstructionBuilder, UndelegateType}};
 
     use super::*;
 
@@ -152,7 +158,177 @@ pub mod magic_trade {
     ) -> Result<()> {
         delegate_basket::handler(ctx, commit_frequency, validator_key)
     }
+
+    // target_custody: custody1Pda,
+    // collateralCustody: custody0Pda,
+    // lockCustody: custody1Pda
+    //  const addCollateralAmount = new anchor.BN(2_000_000);  
+    // const sizeAmount = new anchor.BN(500);              
+
+    pub fn commit_and_add_collateral_to_position(ctx: Context<CommitAndAddCollateralToPosition>, target_custody_id: u8, collateral_custody_id: u8, lock_custody_id: u8, collateral_amount: u64, size_amount: u64) -> Result<()> {
+
+        let add_collateral_to_position_ix = anchor_lang::InstructionData::data(
+            &crate::instruction::AddCollateralToPosition {
+                collateral_amount: collateral_amount,
+                size_amount: size_amount
+            }
+        );
+
+        let action_args = ActionArgs {
+            escrow_index: 0,
+            data: add_collateral_to_position_ix
+        };
+
+        msg!("Hello World!");
+
+        let accounts = vec![
+            ShortAccountMeta {
+                pubkey: ctx.accounts.owner.key(),
+                is_writable: false
+            },
+            ShortAccountMeta {
+                pubkey: ctx.accounts.basket.key(),
+                is_writable: true,
+            },
+            ShortAccountMeta {
+                pubkey: ctx.accounts.market.key(),
+                is_writable: true,
+            },
+            ShortAccountMeta {
+                pubkey: ctx.accounts.pool.key(),
+                is_writable: false
+            },
+            ShortAccountMeta {
+                pubkey: ctx.accounts.target_custody.key(),
+                is_writable: false
+            },
+            ShortAccountMeta {
+                pubkey: ctx.accounts.collateral_custody.key(),
+                is_writable: true,
+            },
+            ShortAccountMeta {
+                pubkey: ctx.accounts.lock_custody.key(),
+                is_writable: true
+            },
+            ShortAccountMeta {
+                pubkey: ctx.accounts.target_oracle.key(),
+                is_writable: false
+            },
+            ShortAccountMeta {
+                pubkey: ctx.accounts.collateral_oracle.key(),
+                is_writable: false
+            },
+            ShortAccountMeta {
+                pubkey: ctx.accounts.lock_oracle.key(),
+                is_writable: false
+            }
+        ];
+
+        let add_collateral_to_position_handler = CallHandler {
+            args: action_args,
+            compute_units: 200_000,
+            escrow_authority: ctx.accounts.owner.to_account_info(),
+            destination_program: crate::ID,
+            accounts
+        };
+
+        msg!("About to build and invoke commit");
+
+        MagicInstructionBuilder {
+            payer: ctx.accounts.owner.to_account_info(),
+            magic_context: ctx.accounts.magic_context.to_account_info(),
+            magic_program: ctx.accounts.magic_program.to_account_info(),
+            magic_action: MagicAction::Commit(CommitType::WithHandler {
+            commited_accounts: vec![
+                ctx.accounts.basket.to_account_info(),
+                ctx.accounts.market.to_account_info(),
+                ctx.accounts.collateral_custody.to_account_info(),
+                ctx.accounts.lock_custody.to_account_info(),
+            ],
+                call_handlers: vec![add_collateral_to_position_handler]
+            }),
+        }.build_and_invoke()?;
+
+        msg!("Builded and invoked!");
+
+        Ok(())
+    }
 }
 
 
-// remove from custody and add to position only update collateranl nothing else no transfers
+#[commit]
+#[derive(Accounts)]
+#[instruction(target_custody_id: u8, collateral_custody_id: u8, lock_custody_id: u8, collateral_amount: u64, size_amount: u64)]
+pub struct CommitAndAddCollateralToPosition<'info> {
+    #[account(mut)]
+    pub owner: Signer<'info>,
+
+    #[account(
+        mut,
+        seeds = [BASKET_SEED, owner.key().as_ref()],
+        bump = basket.basket_bump
+    )]
+    pub basket: Account<'info, Basket>,
+
+    #[account(
+        mut,
+        seeds = [
+            MARKET_SEED,
+            market.target_custody.key().as_ref(),
+            market.lock_custody.key().as_ref(),
+            &[market.side as u8]
+        ],
+        bump
+    )]
+    pub market: Account<'info, Market>,
+
+    #[account(
+        seeds = [POOL_SEED, &[pool.id]],
+        bump = pool.pool_bump
+    )]
+    pub pool: Account<'info, Pool>,
+
+    #[account(
+        seeds = [CUSTODY_SEED, pool.key().as_ref(), &[target_custody.id]],
+        bump = target_custody.custody_bump
+    )]
+    pub target_custody: Account<'info, Custody>,
+
+    #[account(
+        mut,
+        seeds = [
+            CUSTODY_SEED, 
+            pool.key().as_ref(), 
+            &[collateral_custody.id]
+        ],
+        bump = collateral_custody.custody_bump
+    )]
+    pub collateral_custody: Account<'info, Custody>,
+
+    #[account(
+        mut,
+        seeds = [
+            CUSTODY_SEED, 
+            pool.key().as_ref(), 
+            &[lock_custody.id]
+        ],
+        bump = lock_custody.custody_bump
+    )]
+    pub lock_custody: Account<'info, Custody>,
+
+    /// CHECK: Oracle account validated by address
+    pub target_oracle: UncheckedAccount<'info>,
+
+    /// CHECK: Oracle account validated by address
+    pub collateral_oracle: UncheckedAccount<'info>,
+
+    /// CHECK: Oracle account for lock custody price
+    pub lock_oracle: UncheckedAccount<'info>,
+
+    /// CHECK: Magic context account
+    #[account(mut)]
+    pub magic_context: UncheckedAccount<'info>,
+    
+    /// CHECK: Magic program
+    pub magic_program: UncheckedAccount<'info>,
+}

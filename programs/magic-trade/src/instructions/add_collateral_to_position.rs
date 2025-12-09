@@ -5,8 +5,8 @@ use crate::{
 
 #[derive(Accounts)]
 pub struct AddCollateralToPosition<'info> {
-    #[account(mut)]
-    pub owner: Signer<'info>,
+    #[account()]
+    pub owner: AccountInfo<'info>,
 
     #[account(
         mut,
@@ -72,6 +72,12 @@ pub struct AddCollateralToPosition<'info> {
     /// CHECK: Oracle account for lock custody price
     #[account(address = lock_custody.oracle)]
     pub lock_oracle: UncheckedAccount<'info>,
+
+
+    /// CHECK: the correct pda - this will be moved to the end in the future, meaning you can omit this unless needed
+    pub escrow: UncheckedAccount<'info>,
+    /// CHECK: the correct pda - this will be moved to the end in the future, meaning you can omit this unless needed
+    pub escrow_auth: UncheckedAccount<'info>,
 }
 
 #[event]
