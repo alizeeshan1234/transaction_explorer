@@ -17,7 +17,7 @@ use crate::{
     COLLATERAL_PRICE_MAX_AGE, constants::*, error::PlatformError, market::OraclePrice, state::{basket::Basket, custody::Custody, market::Market, pool::Pool}
 };
 
-declare_id!("69kkot4VoLAEn7kJMQwzHUYDyPZ16S6D84oixwuFMREx");
+declare_id!("2bjn3R5UdXnfb1A4fxdypoChKfiTVqSY7mJwbvpztYKm");
 
 #[ephemeral]
 #[program]
@@ -165,7 +165,7 @@ pub mod magic_trade {
     //  const addCollateralAmount = new anchor.BN(2_000_000);  
     // const sizeAmount = new anchor.BN(500);              
 
-    pub fn commit_and_add_collateral_to_position(ctx: Context<CommitAndAddCollateralToPosition>, target_custody_id: u8, collateral_custody_id: u8, lock_custody_id: u8, collateral_amount: u64, size_amount: u64) -> Result<()> {
+    pub fn commit_and_add_collateral_to_position(ctx: Context<CommitAndAddCollateralToPosition>, collateral_amount: u64, size_amount: u64) -> Result<()> {
 
         let add_collateral_to_position_ix = anchor_lang::InstructionData::data(
             &crate::instruction::AddCollateralToPosition {
@@ -255,80 +255,39 @@ pub mod magic_trade {
     }
 }
 
-
 #[commit]
 #[derive(Accounts)]
-#[instruction(target_custody_id: u8, collateral_custody_id: u8, lock_custody_id: u8, collateral_amount: u64, size_amount: u64)]
 pub struct CommitAndAddCollateralToPosition<'info> {
     #[account(mut)]
     pub owner: Signer<'info>,
 
-    #[account(
-        mut,
-        seeds = [BASKET_SEED, owner.key().as_ref()],
-        bump = basket.basket_bump
-    )]
+    #[account(mut)]
     pub basket: Account<'info, Basket>,
 
-    #[account(
-        mut,
-        seeds = [
-            MARKET_SEED,
-            market.target_custody.key().as_ref(),
-            market.lock_custody.key().as_ref(),
-            &[market.side as u8]
-        ],
-        bump
-    )]
+    #[account(mut)]
     pub market: Account<'info, Market>,
 
-    #[account(
-        seeds = [POOL_SEED, &[pool.id]],
-        bump = pool.pool_bump
-    )]
     pub pool: Account<'info, Pool>,
 
-    #[account(
-        seeds = [CUSTODY_SEED, pool.key().as_ref(), &[target_custody.id]],
-        bump = target_custody.custody_bump
-    )]
     pub target_custody: Account<'info, Custody>,
 
-    #[account(
-        mut,
-        seeds = [
-            CUSTODY_SEED, 
-            pool.key().as_ref(), 
-            &[collateral_custody.id]
-        ],
-        bump = collateral_custody.custody_bump
-    )]
+    #[account(mut)]
     pub collateral_custody: Account<'info, Custody>,
 
-    #[account(
-        mut,
-        seeds = [
-            CUSTODY_SEED, 
-            pool.key().as_ref(), 
-            &[lock_custody.id]
-        ],
-        bump = lock_custody.custody_bump
-    )]
+    #[account(mut)]
     pub lock_custody: Account<'info, Custody>,
 
-    /// CHECK: Oracle account validated by address
+    /// CHECK: Oracle
     pub target_oracle: UncheckedAccount<'info>,
 
-    /// CHECK: Oracle account validated by address
+    /// CHECK: Oracle
     pub collateral_oracle: UncheckedAccount<'info>,
 
-    /// CHECK: Oracle account for lock custody price
+    /// CHECK: Oracle
     pub lock_oracle: UncheckedAccount<'info>,
 
-    /// CHECK: Magic context account
     #[account(mut)]
     pub magic_context: UncheckedAccount<'info>,
     
-    /// CHECK: Magic program
     pub magic_program: UncheckedAccount<'info>,
 }

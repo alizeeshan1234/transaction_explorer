@@ -784,7 +784,7 @@ describe("magic-trade account initialization", () => {
     const addCollateralAmount = new anchor.BN(2_000_000);  
     const sizeAmount = new anchor.BN(500);           
 
-    const tx = await program.methods.commitAndAddCollateralToPosition(custody1Id, custody0Id, custody1Id, addCollateralAmount, sizeAmount).accountsPartial({
+    const tx = await program.methods.commitAndAddCollateralToPosition(addCollateralAmount, sizeAmount).accountsPartial({
       owner: admin.publicKey,
       basket: basketPda,
       market: market0Pda,

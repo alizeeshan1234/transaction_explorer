@@ -73,7 +73,6 @@ pub struct AddCollateralToPosition<'info> {
     #[account(address = lock_custody.oracle)]
     pub lock_oracle: UncheckedAccount<'info>,
 
-
     /// CHECK: the correct pda - this will be moved to the end in the future, meaning you can omit this unless needed
     pub escrow: UncheckedAccount<'info>,
     /// CHECK: the correct pda - this will be moved to the end in the future, meaning you can omit this unless needed
