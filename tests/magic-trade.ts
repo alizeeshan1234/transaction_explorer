@@ -510,7 +510,7 @@ describe("magic-trade account initialization", () => {
     const sizeAmount = new anchor.BN(500);                 
 
     const addCollateralTxn = await program.methods
-      .addCollateralToPosition(addCollateralAmount, sizeAmount)
+      .processAddCollateralToPosition(addCollateralAmount, sizeAmount)
       .accountsPartial({
         owner: admin.publicKey,
         basket: basketPda,
@@ -780,11 +780,37 @@ describe("magic-trade account initialization", () => {
   //     console.log("Added collateral to position tx: ", addCollateralTxn);
   // })
 
-  it("Commit and add collateral to position", async () => {
-    const addCollateralAmount = new anchor.BN(2_000_000);  
-    const sizeAmount = new anchor.BN(500);           
+  // it("Commit and add collateral to position", async () => {
+  //   const addCollateralAmount = new anchor.BN(2_000_000);  
+  //   const sizeAmount = new anchor.BN(500);           
 
-    const tx = await program.methods.commitAndAddCollateralToPosition(addCollateralAmount, sizeAmount).accountsPartial({
+  //   const tx = await program.methods.commitAndAddCollateralToPosition(addCollateralAmount, sizeAmount).accountsPartial({
+  //     owner: admin.publicKey,
+  //     basket: basketPda,
+  //     market: market0Pda,
+  //     pool: poolPda,
+  //     targetCustody: custody1Pda,
+  //     collateralCustody: custody0Pda,
+  //     lockCustody: custody1Pda,
+  //     targetOracle: oracle1Pubkey,
+  //     collateralOracle: oracle0Pubkey,
+  //     lockOracle: oracle1Pubkey,
+  //     magicContext: MAGIC_CONTEXT_ID,
+  //     magicProgram: MAGIC_PROGRAM_ID,
+  //   }).transaction();
+
+  //   const signature = await sendMagicTransaction(
+  //     routerConnection,
+  //     tx,
+  //     [admin]
+  //   );
+
+  //   await sleepWithAnimation(15);
+  //   console.log(`Transaction Signature: ${signature}`);
+  // })
+
+  it("Commit, undelegate and add collateral to position", async () => {
+    let tx = await program.methods.processCommitAndUndelegateAccounts().accountsPartial({
       owner: admin.publicKey,
       basket: basketPda,
       market: market0Pda,
@@ -795,18 +821,37 @@ describe("magic-trade account initialization", () => {
       targetOracle: oracle1Pubkey,
       collateralOracle: oracle0Pubkey,
       lockOracle: oracle1Pubkey,
-      magicContext: MAGIC_CONTEXT_ID,
-      magicProgram: MAGIC_PROGRAM_ID,
     }).transaction();
 
-    const signature = await sendMagicTransaction(
+    let signature = await sendMagicTransaction(
       routerConnection,
       tx,
       [admin]
     );
 
-    await sleepWithAnimation(15);
+    await sleepWithAnimation(30);
     console.log(`Transaction Signature: ${signature}`);
+
+    const addCollateralAmount = new anchor.BN(2_000_000);  
+    const sizeAmount = new anchor.BN(500);                 
+
+    const addCollateralTxn = await program.methods
+      .processAddCollateralToPosition(addCollateralAmount, sizeAmount)
+      .accountsPartial({
+        owner: admin.publicKey,
+        basket: basketPda,
+        market: market0Pda,
+        pool: poolPda,
+        targetCustody: custody1Pda,
+        collateralCustody: custody0Pda,
+        lockCustody: custody1Pda,
+        targetOracle: oracle1Pubkey, 
+        collateralOracle: oracle0Pubkey,
+        lockOracle: oracle1Pubkey,
+      }).signers([admin]).rpc();
+
+    console.log(`Add collateral to position: ${addCollateralTxn}`);
+
   })
 });
 

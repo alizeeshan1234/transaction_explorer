@@ -13,7 +13,7 @@ pub struct AddCollateralToPosition<'info> {
         seeds = [BASKET_SEED, owner.key().as_ref()],
         bump = basket.basket_bump
     )]
-    pub basket: Account<'info, Basket>,
+    pub basket: Account<'info, Basket>, //delegated
 
     #[account(
         mut,
@@ -25,19 +25,19 @@ pub struct AddCollateralToPosition<'info> {
         ],
         bump
     )]
-    pub market: Account<'info, Market>,
+    pub market: Account<'info, Market>, //delegated 
 
     #[account(
         seeds = [POOL_SEED, &[pool.id]],
         bump = pool.pool_bump
     )]
-    pub pool: Account<'info, Pool>,
+    pub pool: Account<'info, Pool>, //delegated
 
     #[account(
         seeds = [CUSTODY_SEED, pool.key().as_ref(), &[target_custody.id]],
         bump = target_custody.custody_bump
     )]
-    pub target_custody: Account<'info, Custody>,
+    pub target_custody: Account<'info, Custody>, //delegated
 
     #[account(
         mut,
@@ -72,11 +72,6 @@ pub struct AddCollateralToPosition<'info> {
     /// CHECK: Oracle account for lock custody price
     #[account(address = lock_custody.oracle)]
     pub lock_oracle: UncheckedAccount<'info>,
-
-    /// CHECK: the correct pda - this will be moved to the end in the future, meaning you can omit this unless needed
-    pub escrow: UncheckedAccount<'info>,
-    /// CHECK: the correct pda - this will be moved to the end in the future, meaning you can omit this unless needed
-    pub escrow_auth: UncheckedAccount<'info>,
 }
 
 #[event]
@@ -292,6 +287,7 @@ pub fn handler(ctx: Context<AddCollateralToPosition>, collateral_amount: u64, si
         custody_reserved: ctx.accounts.collateral_custody.assets.reserved,
         timestamp: current_time,
     });
+    msg!("Hello World!");
     Ok(())
 }
 
