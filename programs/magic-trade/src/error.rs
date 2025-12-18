@@ -126,4 +126,20 @@ pub enum PlatformError {
     LpPriceOutOfBounds,
     #[msg("Insufficient rebate reserves")]
     InsufficientRebateReserves,
+
+    #[msg("Position not found")]
+    PositionNotFound,
+
+    MathError,
+
+    #[msg("Insufficient collateral")]
+    InsufficientCollateral,
+
+    InvalidInput,
+
+    MinInitLeverage,
+
+    InsufficientPositionSize,
+    
+    InsufficientLockedAmount
 }
