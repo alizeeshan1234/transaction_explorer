@@ -17,7 +17,7 @@ use crate::{
     COLLATERAL_PRICE_MAX_AGE, constants::*, error::PlatformError, market::OraclePrice, state::{basket::Basket, custody::Custody, market::Market, pool::Pool}
 };
 
-declare_id!("FEAk5DhL8Q1TXDpj6s9tQKNBaAC9aJ8GTSfYfFkMzLSD");
+declare_id!("7g2XqHZM5bznwBra3Yuwi8nbvQZe7nbxBPSBxrVPiH88");
 
 #[ephemeral]
 #[program]

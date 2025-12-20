@@ -528,7 +528,7 @@ describe("magic-trade account initialization", () => {
       console.log("Added collateral to position tx: ", addCollateralTxn);
   });
 
-  it("remove collateral from position", async () => {
+  it.skip("remove collateral from position", async () => {
     const removeCollateralAmount = new anchor.BN(1_000_000);  
     const sizeAmount = new anchor.BN(250);    
 
@@ -809,7 +809,7 @@ describe("magic-trade account initialization", () => {
   //   console.log(`Transaction Signature: ${signature}`);
   // })
 
-  it("Commit, undelegate and add collateral to position", async () => {
+  it.skip("Commit, undelegate and add collateral to position", async () => {
     let tx = await program.methods.processCommitAndUndelegateAccounts().accountsPartial({
       owner: admin.publicKey,
       basket: basketPda,
@@ -851,6 +851,48 @@ describe("magic-trade account initialization", () => {
       }).signers([admin]).rpc();
 
     console.log(`Add collateral to position: ${addCollateralTxn}`);
+  });
+
+  it("Commit, undelegate and remove collateral from position", async () => {
+    let tx = await program.methods.processCommitAndUndelegateAccounts().accountsPartial({
+      owner: admin.publicKey,
+      basket: basketPda,
+      market: market0Pda,
+      pool: poolPda,
+      targetCustody: custody1Pda,
+      collateralCustody: custody0Pda,
+      lockCustody: custody1Pda,
+      targetOracle: oracle1Pubkey,
+      collateralOracle: oracle0Pubkey,
+      lockOracle: oracle1Pubkey,
+    }).transaction();
+
+    let signature = await sendMagicTransaction(
+      routerConnection,
+      tx,
+      [admin]
+    );
+
+    await sleepWithAnimation(30);
+    console.log(`Transaction Signature: ${signature}`);
+
+    const removeCollateralAmount = new anchor.BN(1_000_00);  
+    const sizeAmount = new anchor.BN(250);    
+
+    const removeCollateralTxn = await program.methods.removeCollateralFromPosition(removeCollateralAmount, sizeAmount).accountsPartial({
+      owner: admin.publicKey,
+      basket: basketPda,
+      market: market0Pda,
+      pool: poolPda,
+      targetCustody: custody1Pda,
+      collateralCustody: custody0Pda,
+      lockCustody: custody1Pda,
+      targetOracle: oracle1Pubkey, 
+      collateralOracle: oracle0Pubkey,
+      lockOracle: oracle1Pubkey,
+    }).rpc();
+
+    console.log("remove collateral from position tx: ", removeCollateralTxn);
 
   })
 });
