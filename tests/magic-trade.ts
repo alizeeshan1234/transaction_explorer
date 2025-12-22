@@ -240,7 +240,7 @@ describe("magic-trade account initialization", () => {
       minInitLeverage: 1_0000,
       maxInitLeverage: 100_0000,
       maxLeverage: 200_0000,
-      maxUtilization: 8_000,
+      maxUtilization: 10_000,
       minCollateralUsd: 100_000,
       padding: [0, 0, 0, 0],
       virtualDelay: new anchor.BN(0),
@@ -809,7 +809,7 @@ describe("magic-trade account initialization", () => {
   //   console.log(`Transaction Signature: ${signature}`);
   // })
 
-  it("Commit, undelegate and add collateral to position", async () => {
+  it("Commit, undelegate, add collateral to position and re-delegate", async () => {
     let tx = await program.methods.processCommitAndUndelegateAccounts().accountsPartial({
       owner: admin.publicKey,
       basket: basketPda,
@@ -916,7 +916,7 @@ describe("magic-trade account initialization", () => {
     await sleepWithAnimation(15);
   });
 
-  it("Commit, undelegate and remove collateral from position", async () => {
+  it("Commit, undelegate, remove collateral from position and re-delegate", async () => {
     let tx = await program.methods.processCommitAndUndelegateAccounts().accountsPartial({
       owner: admin.publicKey,
       basket: basketPda,
