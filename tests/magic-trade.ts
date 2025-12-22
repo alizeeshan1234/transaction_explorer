@@ -240,7 +240,7 @@ describe("magic-trade account initialization", () => {
       minInitLeverage: 1_0000,
       maxInitLeverage: 100_0000,
       maxLeverage: 200_0000,
-      maxUtilization: 8_000,
+      maxUtilization: 10_000,
       minCollateralUsd: 100_000,
       padding: [0, 0, 0, 0],
       virtualDelay: new anchor.BN(0),
@@ -809,11 +809,11 @@ describe("magic-trade account initialization", () => {
   //   console.log(`Transaction Signature: ${signature}`);
   // })
 
-  it.skip("Commit, undelegate and add collateral to position", async () => {
+  it("Commit, undelegate, add collateral to position and re-delegate", async () => {
     let tx = await program.methods.processCommitAndUndelegateAccounts().accountsPartial({
       owner: admin.publicKey,
       basket: basketPda,
-      market: market0Pda,
+      market: market0Pda,  
       pool: poolPda,
       targetCustody: custody1Pda,
       collateralCustody: custody0Pda,
@@ -851,9 +851,72 @@ describe("magic-trade account initialization", () => {
       }).signers([admin]).rpc();
 
     console.log(`Add collateral to position: ${addCollateralTxn}`);
+
+    //Delegate back the accounts
+    await sleepWithAnimation(10);
+
+    const commitFrequency = 10_000;
+    const validatorKey = new PublicKey("MAS1Dt9qreoRMQ14YQuhg8UTZMMzDdKhmkZMECCzk57");
+
+    const delegatePoolTxn = await program.methods
+      .delegatePool(commitFrequency, validatorKey)
+      .accountsPartial({
+        payer: admin.publicKey,
+        pool: poolPda,
+      })
+      .rpc();
+
+    console.log("delegate pool tx", delegatePoolTxn);
+
+    const delegateCustody0Txn = await program.methods
+      .delegateCustody(commitFrequency, validatorKey)
+      .accountsPartial({
+        payer: admin.publicKey,
+        pool: poolPda,
+        custody: custody0Pda,
+      })
+      .rpc();
+
+    console.log("delegate custody0 tx", delegateCustody0Txn);
+
+    const delegateCustody1Txn = await program.methods
+      .delegateCustody(commitFrequency, validatorKey)
+      .accountsPartial({
+        payer: admin.publicKey,
+        pool: poolPda,
+        custody: custody1Pda,
+      })
+      .rpc();
+
+    console.log("delegate custody1 tx", delegateCustody1Txn);
+
+    const delegateMarketTxn = await program.methods
+      .delegateMarket(commitFrequency, validatorKey)
+      .accountsPartial({
+        payer: admin.publicKey,
+        targetCustody: custody1Pda,
+        lockCustody: custody1Pda,
+        market: market0Pda,
+      })
+      .rpc();
+
+    console.log("delegate market tx", delegateMarketTxn);
+
+    const delegateBasketTxn = await program.methods
+      .delegateBasket(commitFrequency, validatorKey)
+      .accountsPartial({
+        payer: admin.publicKey,
+        owner: admin.publicKey,
+        basket: basketPda,
+      })
+      .rpc();
+
+    console.log("delegate basket tx", delegateBasketTxn);
+
+    await sleepWithAnimation(15);
   });
 
-  it("Commit, undelegate and remove collateral from position", async () => {
+  it("Commit, undelegate, remove collateral from position and re-delegate", async () => {
     let tx = await program.methods.processCommitAndUndelegateAccounts().accountsPartial({
       owner: admin.publicKey,
       basket: basketPda,
@@ -894,6 +957,66 @@ describe("magic-trade account initialization", () => {
 
     console.log("remove collateral from position tx: ", removeCollateralTxn);
 
+    //Delegate back the accounts
+    await sleepWithAnimation(10);
+
+    const commitFrequency = 10_000;
+    const validatorKey = new PublicKey("MAS1Dt9qreoRMQ14YQuhg8UTZMMzDdKhmkZMECCzk57");
+
+    const delegatePoolTxn = await program.methods
+      .delegatePool(commitFrequency, validatorKey)
+      .accountsPartial({
+        payer: admin.publicKey,
+        pool: poolPda,
+      })
+      .rpc();
+
+    console.log("delegate pool tx", delegatePoolTxn);
+
+    const delegateCustody0Txn = await program.methods
+      .delegateCustody(commitFrequency, validatorKey)
+      .accountsPartial({
+        payer: admin.publicKey,
+        pool: poolPda,
+        custody: custody0Pda,
+      })
+      .rpc();
+
+    console.log("delegate custody0 tx", delegateCustody0Txn);
+
+    const delegateCustody1Txn = await program.methods
+      .delegateCustody(commitFrequency, validatorKey)
+      .accountsPartial({
+        payer: admin.publicKey,
+        pool: poolPda,
+        custody: custody1Pda,
+      })
+      .rpc();
+
+    console.log("delegate custody1 tx", delegateCustody1Txn);
+
+    const delegateMarketTxn = await program.methods
+      .delegateMarket(commitFrequency, validatorKey)
+      .accountsPartial({
+        payer: admin.publicKey,
+        targetCustody: custody1Pda,
+        lockCustody: custody1Pda,
+        market: market0Pda,
+      })
+      .rpc();
+
+    console.log("delegate market tx", delegateMarketTxn);
+
+    const delegateBasketTxn = await program.methods
+      .delegateBasket(commitFrequency, validatorKey)
+      .accountsPartial({
+        payer: admin.publicKey,
+        owner: admin.publicKey,
+        basket: basketPda,
+      })
+      .rpc();
+
+    console.log("delegate basket tx", delegateBasketTxn);
   })
 });
 
