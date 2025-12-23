@@ -17,7 +17,7 @@ use crate::{
     COLLATERAL_PRICE_MAX_AGE, constants::*, error::PlatformError, market::OraclePrice, state::{basket::Basket, custody::Custody, market::Market, pool::Pool}
 };
 
-declare_id!("2TGaK9oduqR62AS74dgq2xSzb9zruHfdZcGNRM9tbs36");
+declare_id!("GBn3rwjrPRoCMSUtSEsvVhyNzZqWRFN64YN3v9VGMExF");
 
 #[ephemeral]
 #[program]
@@ -30,7 +30,7 @@ pub mod magic_trade {
     pub fn initialize(
         ctx: Context<InitializePlatform>,
         version: u8,
-        permissions: platform::Permissions,
+        permissions: platform::Permissions, 
     ) -> Result<()> {
         initialize::handler(ctx, version, permissions)
     }
