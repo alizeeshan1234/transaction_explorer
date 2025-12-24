@@ -1,1 +1,0 @@
-for<'a, 'b, 'c, 'd, 'e> fn(TokenProgramType, &'a pinocchio::account_info::AccountInfo, &'b pinocchio::account_info::AccountInfo, &'c pinocchio::account_info::AccountInfo, &'d pinocchio::account_info::AccountInfo, &'e pinocchio::account_info::AccountInfo, u8) -> Result<(), pinocchio::program_error::ProgramError> {create_mint_cpi::create_mint_account_cpi}
