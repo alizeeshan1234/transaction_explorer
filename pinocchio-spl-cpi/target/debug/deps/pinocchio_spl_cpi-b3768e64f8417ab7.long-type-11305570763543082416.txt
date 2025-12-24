@@ -1,0 +1,1 @@
+for<'a, 'b, 'c> fn(&'a [u8; pinocchio::::pubkey::Pubkey::{constant#0}], &'b [pinocchio::account_info::AccountInfo], &'c [u8]) -> Result<(), pinocchio::program_error::ProgramError> {process_instruction}

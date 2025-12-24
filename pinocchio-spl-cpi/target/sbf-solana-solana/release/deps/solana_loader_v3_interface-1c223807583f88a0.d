@@ -1,0 +1,9 @@
+/Users/mohammedzeeshan/Desktop/pinocchio-spl-cpi/target/sbf-solana-solana/release/deps/libsolana_loader_v3_interface-1c223807583f88a0.rmeta: /Users/mohammedzeeshan/.cargo/registry/src/index.crates.io-6f17d22bba15001f/solana-loader-v3-interface-5.0.0/src/lib.rs /Users/mohammedzeeshan/.cargo/registry/src/index.crates.io-6f17d22bba15001f/solana-loader-v3-interface-5.0.0/src/instruction.rs /Users/mohammedzeeshan/.cargo/registry/src/index.crates.io-6f17d22bba15001f/solana-loader-v3-interface-5.0.0/src/state.rs
+
+/Users/mohammedzeeshan/Desktop/pinocchio-spl-cpi/target/sbf-solana-solana/release/deps/libsolana_loader_v3_interface-1c223807583f88a0.rlib: /Users/mohammedzeeshan/.cargo/registry/src/index.crates.io-6f17d22bba15001f/solana-loader-v3-interface-5.0.0/src/lib.rs /Users/mohammedzeeshan/.cargo/registry/src/index.crates.io-6f17d22bba15001f/solana-loader-v3-interface-5.0.0/src/instruction.rs /Users/mohammedzeeshan/.cargo/registry/src/index.crates.io-6f17d22bba15001f/solana-loader-v3-interface-5.0.0/src/state.rs
+
+/Users/mohammedzeeshan/Desktop/pinocchio-spl-cpi/target/sbf-solana-solana/release/deps/solana_loader_v3_interface-1c223807583f88a0.d: /Users/mohammedzeeshan/.cargo/registry/src/index.crates.io-6f17d22bba15001f/solana-loader-v3-interface-5.0.0/src/lib.rs /Users/mohammedzeeshan/.cargo/registry/src/index.crates.io-6f17d22bba15001f/solana-loader-v3-interface-5.0.0/src/instruction.rs /Users/mohammedzeeshan/.cargo/registry/src/index.crates.io-6f17d22bba15001f/solana-loader-v3-interface-5.0.0/src/state.rs
+
+/Users/mohammedzeeshan/.cargo/registry/src/index.crates.io-6f17d22bba15001f/solana-loader-v3-interface-5.0.0/src/lib.rs:
+/Users/mohammedzeeshan/.cargo/registry/src/index.crates.io-6f17d22bba15001f/solana-loader-v3-interface-5.0.0/src/instruction.rs:
+/Users/mohammedzeeshan/.cargo/registry/src/index.crates.io-6f17d22bba15001f/solana-loader-v3-interface-5.0.0/src/state.rs:
